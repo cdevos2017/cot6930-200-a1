@@ -4,5 +4,5 @@
 # !!! IF USING OPEN-WEBUI, PROVIDE TEH API_KEY !!!
 # URL_GENERATE=https://chat.hpc.fau.edu/api/chat/completions
 
-URL_GENERATE=${URL_GENERATE}
-API_KEY=${API_KEY}
+URL_GENERATE=http://localhost:11434/api/generate
+API_KEY=e1e0be57ad5d4b2aac1ca69911ee09f2
