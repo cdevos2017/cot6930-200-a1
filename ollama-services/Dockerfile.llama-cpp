@@ -1,0 +1,25 @@
+FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
+
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    python3 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /llama.cpp
+RUN git clone https://github.com/ggerganov/llama.cpp.git . && \
+    mkdir build && \
+    cd build && \
+    cmake .. -DGGML_CUDA=ON && \
+    make -j4
+
+RUN pip3 install torch numpy sentencepiece transformers fastapi uvicorn pydantic
+
+RUN mkdir -p /models/input /models/output /app
+
+COPY api /app/
+WORKDIR /app
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8123"]
