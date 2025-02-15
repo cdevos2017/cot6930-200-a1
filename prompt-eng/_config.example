@@ -2,8 +2,7 @@
 # Point to the target Ollama or Open-WebUI Server
 # !!! YOU NEED TO ADJUST THE URL TO YOUR SERVER !!!
 # !!! IF USING OPEN-WEBUI, PROVIDE TEH API_KEY !!!
+# URL_GENERATE=https://chat.hpc.fau.edu/api/chat/completions
 
-URL_GENERATE=http://localhost:11434/api/generate
-#URL_GENERATE=https://chat.hpc.fau.edu/api/chat/completions
-#API_KEY=
-
+URL_GENERATE=${URL_GENERATE}
+API_KEY=${API_KEY}

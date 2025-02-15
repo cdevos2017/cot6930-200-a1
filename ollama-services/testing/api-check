@@ -1,0 +1,9 @@
+# Check status
+curl http://localhost:8123/status
+
+# Convert a model
+curl -X POST http://localhost:8123/convert \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model_path": "deepseek/r1"
+  }'
