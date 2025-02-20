@@ -1,0 +1,5 @@
+{
+  "// Config": "Open-WebUI Server",
+  "URL_GENERATE": "http://localhost:3000/api/chat/completions",
+  "API_KEY": "sk-e1e0be57ad5d4b2aac1ca69911ee09f2"
+}
