@@ -1,45 +1,43 @@
+# prompt_refiner.py
+
+import time
 from .analyzers import call_llm_for_analysis, parse_json_response
+from .template_generator import get_meta_template, determine_template
+from .utils import format_prompt_with_template, get_parameters_for_task, validate_parameters
 
 def iterative_prompt_refinement(initial_message, min_iterations=3, max_iterations=5, threshold=0.9):
     """
-    Recursively refine a prompt through multiple iterations,
-    ensuring a minimum number of refinements occur.
-    
-    Args:
-        initial_message (str): Original user query
-        min_iterations (int): Minimum number of refinement iterations
-        max_iterations (int): Maximum refinement iterations
-        threshold (float): Quality threshold to stop iterations (0-1)
-        
-    Returns:
-        dict: Final template configuration with high-quality prompt
+    Recursively refine a prompt through multiple iterations
     """
-    
     current_message = initial_message
     current_quality = 0
     iteration = 0
     
-    # Keep track of the best configuration so far
+    # Keep track of the best configuration
     best_config = None
     best_quality = 0
     
+    # Get initial template configuration
+    template_config = get_meta_template(initial_message)
+    
     while iteration < max_iterations:
-        # Force at least min_iterations regardless of quality score
         force_continue = iteration < min_iterations
         
-        # Meta-prompt with simpler JSON structure
+        # Construct meta-prompt
         meta_prompt = f"""
         Evaluate this candidate prompt: "{current_message}"
         
         1. Rate the current prompt quality from 0.0 to 1.0
         2. Provide an improved version even if quality is high
-        3. Determine the optimal role and parameters for this query
+        3. Determine if the current role ({template_config['role']}) and technique ({template_config.get('technique', 'none')}) are optimal
         
         Return your analysis in JSON format:
         {{
             "quality_score": [score between 0-1],
             "improved_prompt": "[refined prompt]",
             "role": "[appropriate expert role]",
+            "technique": "[appropriate prompt technique]",
+            "task_type": "[specific task category]",
             "template": "[prompt template with {{query}} placeholder]",
             "parameters": {{
                 "temperature": [appropriate value],
@@ -63,10 +61,15 @@ def iterative_prompt_refinement(initial_message, min_iterations=3, max_iteration
         print(f"Current quality: {current_quality}")
         print(f"Reasoning: {result.get('reasoning', 'No reasoning provided')}")
         
-        # Save this as the best config if it has the highest quality so far
+        # Save this as the best config if it has the highest quality
         if current_quality > best_quality:
-            best_config = result
+            best_config = result.copy()
             best_quality = current_quality
+            
+            # Update template configuration if role or technique changed
+            if (result.get("role") != template_config["role"] or 
+                result.get("technique") != template_config.get("technique")):
+                template_config = determine_template(current_message, result)
         
         # Update the message if improvements were suggested
         if improved_prompt and improved_prompt != current_message:
@@ -85,72 +88,36 @@ def iterative_prompt_refinement(initial_message, min_iterations=3, max_iteration
         if not force_continue and current_quality >= threshold:
             break
     
-    # If we couldn't get a valid config, use a reasonable default for math
+    # If we couldn't get a valid config, use defaults
     if not best_config:
         best_config = {
-            "role": "Mathematician",
-            "template": "Calculate the following mathematical expression step-by-step: {query}",
-            "parameters": {"temperature": 0.2, "num_ctx": 2048, "num_predict": 1024},
+            "role": "Assistant",
+            "technique": None,
+            "task_type": "default",
+            "template": "{query}",
+            "parameters": get_parameters_for_task("default"),
             "final_prompt": current_message,
             "iterations_used": iteration,
             "final_quality": current_quality
         }
     else:
-        # Format final configuration
+        # Validate and format the final configuration
         best_config.update({
-            "final_prompt": current_message,
+            "final_prompt": format_prompt_with_template(
+                best_config.get("template", "{query}"),
+                current_message,
+                role=best_config.get("role"),
+                technique=best_config.get("technique")
+            ),
             "iterations_used": iteration,
-            "final_quality": current_quality
-        })
-    
-    # Add template validation and final prompt preparation before returning
-    if best_config:
-        # Clean up and validate the final prompt
-        _validate_and_clean_config(best_config, initial_message)
-        
+            "final_quality": current_quality,
+            "parameters": validate_parameters(best_config.get("parameters", {}))
+        })  
     return best_config
-
-def _validate_and_clean_config(config, original_message):
-    """
-    Validates and cleans a prompt configuration to prevent common issues.
-    
-    Args:
-        config (dict): The prompt configuration to validate
-        original_message (str): The original user query
-    """
-    # 1. Handle final prompt placeholders
-    if "final_prompt" in config:
-        final_prompt = config["final_prompt"]
-        
-        # Remove refinement markers
-        final_prompt = final_prompt.replace("(Please refine this further)", "").strip()
-        
-        # Handle placeholders in final prompt
-        if "{query}" in final_prompt:
-            # Check for potential recursion in math prompts
-            if ("calculate" in final_prompt.lower() or 
-                "log" in final_prompt.lower() or
-                "*" in final_prompt):
-                # For math, use a safe direct prompt
-                final_prompt = original_message
-            else:
-                # For other cases, do simple replacement
-                final_prompt = final_prompt.replace("{query}", original_message)
-                
-        config["final_prompt"] = final_prompt
-    
-    # 2. Validate parameters to ensure they're reasonable
-    if "parameters" in config:
-        params = config["parameters"]
-        # Set minimum/maximum values for critical parameters
-        params["num_ctx"] = max(1024, int(params.get("num_ctx", 1024)))
-        params["num_predict"] = max(512, int(params.get("num_predict", 512)))
-        params["temperature"] = min(max(0.1, float(params.get("temperature", 0.7))), 1.0)
-
 
 def format_final_prompt(config, original_message):
     """
-    Formats the final prompt based on configuration.
+    Formats the final prompt based on configuration
     
     Args:
         config (dict): The prompt configuration
@@ -159,11 +126,97 @@ def format_final_prompt(config, original_message):
     Returns:
         str: The formatted prompt ready for the model
     """
-    # Get the final prompt from config
-    final_prompt = config.get("final_prompt", original_message)
-    
-    # If we still have template placeholders, fall back to original
-    if "{query}" in final_prompt:
-        return original_message
+    # If we have a final prompt in the config, use that
+    if "final_prompt" in config:
+        final_prompt = config["final_prompt"]
         
-    return final_prompt
+        # Remove refinement markers
+        final_prompt = final_prompt.replace("(Please refine this further)", "").strip()
+        
+        # Format with appropriate templates if needed
+        return format_prompt_with_template(
+            final_prompt,
+            original_message,
+            role=config.get("role"),
+            technique=config.get("technique")
+        )
+    
+    # Fall back to original message if no final prompt
+    return original_message
+
+def _validate_and_clean_config(config, original_message):
+    """
+    Validates and cleans a prompt configuration
+    
+    Args:
+        config (dict): The prompt configuration to validate
+        original_message (str): The original user query
+    """
+    # Validate final prompt
+    if "final_prompt" in config:
+        config["final_prompt"] = format_final_prompt(config, original_message)
+    
+    # Validate parameters
+    if "parameters" in config:
+        config["parameters"] = validate_parameters(config["parameters"])
+    
+    # Ensure we have all required fields
+    required_fields = ["role", "template", "parameters", "task_type", "technique"]
+    for field in required_fields:
+        if field not in config:
+            if field == "role":
+                config[field] = "Assistant"
+            elif field == "template":
+                config[field] = "{query}"
+            elif field == "parameters":
+                config[field] = get_parameters_for_task("default")
+            elif field == "task_type":
+                config[field] = "default"
+            elif field == "technique":
+                config[field] = None
+    
+    # Validate parameter values
+    if "parameters" in config:
+        params = config["parameters"]
+        # Ensure critical parameters are within bounds
+        if "temperature" in params:
+            params["temperature"] = min(max(0.1, float(params["temperature"])), 1.0)
+        if "num_ctx" in params:
+            params["num_ctx"] = min(max(1024, int(params["num_ctx"])), 8192)
+        if "num_predict" in params:
+            params["num_predict"] = min(max(512, int(params["num_predict"])), 4096)
+    
+    # Check for potential recursion in math prompts
+    if config.get("task_type") == "math" and config.get("final_prompt"):
+        final_prompt = config["final_prompt"]
+        if any(term in final_prompt.lower() for term in ["calculate", "solve", "compute", "evaluate"]):
+            # For math tasks, ensure we're not creating recursive prompts
+            config["final_prompt"] = original_message.strip()
+    
+    # Validate template format
+    if "template" in config:
+        template = config["template"]
+        if not isinstance(template, str) or "{query}" not in template:
+            config["template"] = "{query}"
+    
+    # Clean up final prompt
+    if "final_prompt" in config:
+        final_prompt = config["final_prompt"]
+        # Remove any refinement markers
+        final_prompt = final_prompt.replace("(Please refine this further)", "").strip()
+        # Remove duplicate whitespace
+        final_prompt = " ".join(final_prompt.split())
+        config["final_prompt"] = final_prompt
+    
+    # Add metadata if not present
+    if "metadata" not in config:
+        config["metadata"] = {
+            "original_query": original_message,
+            "validation_performed": True,
+            "validation_timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+        }
+    
+    return config
+
+
+
