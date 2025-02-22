@@ -94,6 +94,6 @@ def parse_json_response(response):
             print("No JSON object found in response")
             return default_config
             
-    except Exception as e:
-        print(f"Unexpected error during JSON parsing: {str(e)}")
+    except (re.error, AttributeError, TypeError) as e:
+        print(f"Error during string parsing: {str(e)}")
         return default_config
