@@ -1,3 +1,6 @@
+from .analyzers import call_llm_for_analysis
+from .analyzers import parse_json_response
+
 def determine_template(message):
     """Analyze message and return appropriate template configuration"""
     
@@ -36,7 +39,7 @@ def get_meta_template(message):
     Return your response in this JSON format:
     {{
         "role": "[appropriate expert role]",
-        "template": "[prompt template with {query} placeholder]",
+        "template": "[prompt template with {{query}} placeholder]",
         "parameters": {{
             "temperature": [appropriate value],
             "num_ctx": [appropriate value],
