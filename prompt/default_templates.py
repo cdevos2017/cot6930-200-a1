@@ -2,6 +2,18 @@
 Default configurations for different prompt types and tasks.
 """
 
+def get_role_template(role: str) -> str:
+    """Get the template for a specific role"""
+    return ROLE_TEMPLATES.get(role, ROLE_TEMPLATES["Assistant"])
+
+def get_prompt_technique(technique: str) -> str:
+    """Get the template for a specific prompt technique"""
+    return PROMPT_TECHNIQUES.get(technique, PROMPT_TECHNIQUES["zero_shot"])
+
+def get_task_parameters(task_type: str) -> dict:
+    """Get the parameters for a specific task type"""
+    return TASK_PARAMETERS.get(task_type, TASK_PARAMETERS["default"])
+
 # Default role-based templates
 ROLE_TEMPLATES = {
     # Academic roles

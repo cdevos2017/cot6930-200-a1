@@ -2,59 +2,66 @@
 
 import json
 import re
-from typing import Dict, Any, Optional
-from config.default_templates import TASK_PARAMETERS, ROLE_TEMPLATES, PROMPT_TECHNIQUES
+from typing import Dict, Any
+from .default_templates import get_prompt_technique, get_role_template, get_task_parameters
 
-def format_prompt_with_template(template: str, query: str, role: Optional[str] = None, 
-                              technique: Optional[str] = None) -> str:
+
+def format_prompt_with_template(template: str, query: str, role: str = None, 
+                              technique: str = None, task_type: str = None) -> str:
     """
-    Safely format a template with a query, optionally applying role and technique templates
+    Format a template with query, applying role and technique enhancements
     
     Args:
-        template (str): Template string with {query} placeholder
+        template (str): Base template with {query} placeholder
         query (str): User query to insert
-        role (str, optional): Role to use for template
+        role (str, optional): Role to use
         technique (str, optional): Prompt technique to apply
+        task_type (str, optional): Type of task
         
     Returns:
         str: Formatted prompt
     """
-    # Start with base template
-    current_template = template
-    
-    # Apply role template if specified
-    if role and role in ROLE_TEMPLATES:
-        role_template = ROLE_TEMPLATES[role]
-        current_template = role_template.format(query=current_template)
-    
-    # Apply technique template if specified
-    if technique and technique in PROMPT_TECHNIQUES:
-        technique_template = PROMPT_TECHNIQUES[technique]
-        current_template = technique_template.format(
-            query=current_template,
-            role=role if role else "Assistant"
-        )
-    
-    # Final query insertion
-    if "{query}" in current_template:
-        return current_template.format(query=query)
-    return query
-
-def get_parameters_for_task(task_type: str, base_params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """
-    Get recommended parameters for specific task types with optional base parameters
-    
-    Args:
-        task_type (str): Type of task (math, coding, creative, etc.)
-        base_params (dict, optional): Base parameters to extend
+    try:
+        current_query = query
         
-    Returns:
-        dict: Parameter configuration
-    """
-    # Get task-specific parameters
-    task_params = TASK_PARAMETERS.get(task_type, TASK_PARAMETERS["default"]).copy()
+        # Apply technique first if specified
+        if technique:
+            technique_template = get_prompt_technique(technique)
+            format_dict = {
+                "query": current_query,
+                "role": role if role else "Assistant",
+                # Add default placeholders for specific techniques
+                "approach1": "Consider the fundamental principles",
+                "approach2": "Think about edge cases",
+                "approach3": "Look for patterns or similarities"
+            }
+            try:
+                current_query = technique_template.format(**format_dict)
+            except KeyError as e:
+                print(f"Warning: Failed to apply technique {technique}: {e}")
+        
+        # Then apply role template if specified
+        if role:
+            role_template = get_role_template(role)
+            try:
+                current_query = role_template.format(query=current_query)
+            except KeyError as e:
+                print(f"Warning: Failed to apply role {role}: {e}")
+        
+        # Finally apply the base template
+        if "{query}" in template:
+            return template.format(query=current_query)
+        
+        return current_query
     
-    # Merge with base parameters if provided
+    except Exception as e:
+        print(f"Error in format_prompt_with_template: {e}")
+        return query
+
+def get_parameters_for_task(task_type: str, base_params: dict = None) -> dict:
+    """Get parameters for a specific task type with optional base parameters"""
+    task_params = get_task_parameters(task_type).copy()
+    
     if base_params:
         task_params.update(base_params)
     
