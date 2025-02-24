@@ -3,7 +3,7 @@
 import json
 import re
 from typing import Dict, Any
-from .default_templates import get_prompt_technique, get_role_template, get_task_parameters
+from prompt.default_templates import get_prompt_technique, get_role_template, get_task_parameters
 
 
 def format_prompt_with_template(template: str, query: str, role: str = None, 

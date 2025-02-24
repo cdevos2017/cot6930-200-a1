@@ -26,8 +26,11 @@ class ResearchReporter:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
         
-        # Set visualization style
-        plt.style.use('seaborn')
+        # Set visualization style - using default matplotlib style
+        plt.style.use('default')
+        # Set seaborn styling
+        sns.set_theme(style="whitegrid")
+        # Use a colorblind-friendly palette
         sns.set_palette("husl")
     
     def generate_report(self, results: List[Any], analysis: Dict[str, Any]) -> ResearchReport:
