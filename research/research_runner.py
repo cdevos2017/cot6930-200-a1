@@ -1,40 +1,58 @@
-# research/run_research.py
+# research/research_runner.py
 
-from .framework import PromptResearchFramework
-from .reporter import ResearchReporter
+import os
+import sys
+
+# No relative imports - use absolute imports
+from research.framework import PromptResearchFramework
+from research.reporter import ResearchReporter
+
 
 def main():
-    # Initialize framework and reporter
-    framework = PromptResearchFramework()
-    reporter = ResearchReporter()
+    """Run the complete research process"""
     
-    print("Starting research experiment...")
-    print("\nRunning experiments...")
+    print("Starting Automated Prompt Engineering Research...")
     
-    # Run evaluation
-    results = framework.run_full_evaluation()
+    # Initialize both framework and reporter
+    framework = PromptResearchFramework()  # This handles the experiments
+    reporter = ResearchReporter()          # This handles reporting and visualization
     
-    print("\nAnalyzing results...")
-    analysis = framework.analyze_results(results)
-    
-    print("\nGenerating research report...")
-    report = reporter.generate_report(results, analysis)
-    
-    # Save report and get output directory
-    output_dir = reporter.save_report(report)
-    
-    print(f"\nExperiment completed!")
-    print(f"\nFiles saved in: {output_dir}")
-    print(f"- Research report: research_report.md")
-    print(f"- Raw results: raw_results.json")
-    print(f"- Analysis summary: analysis_summary.json")
-    
-    # Print report preview
-    print("\nResearch Report Preview:")
-    print("=" * 80)
-    markdown_report = reporter.format_markdown_report(report)
-    print(markdown_report[:500] + "...\n")
-    print("=" * 80)
+    try:
+        print("\nPhase 1: Running Experiments")
+        print("----------------------------")
+        # Framework conducts all the experiments
+        results = framework.run_full_evaluation()
+        
+        print(f"\nCompleted {len(results)} experiments")
+        
+        print("\nPhase 2: Analyzing Results")
+        print("-------------------------")
+        # Framework analyzes the results
+        analysis = framework.analyze_results(results)
+        
+        print("\nPhase 3: Generating Report")
+        print("-------------------------")
+        # Reporter generates and saves everything
+        report = reporter.generate_report(results, analysis)
+        output_dir = reporter.save_report(report)
+        
+        print("\nResearch completed successfully!")
+        print(f"\nOutputs saved in: {output_dir}")
+        print("\nGenerated files:")
+        print("- research_report.md (Full research report with visualizations)")
+        print("- raw_results.json (Detailed experimental data)")
+        print("- analysis_summary.json (Analysis results)")
+        print("- visualizations/ (Directory containing all graphs and charts)")
+        
+    except Exception as e:
+        print(f"\nError during research execution: {str(e)}")
+        raise
 
 if __name__ == "__main__":
-    main()
+    # Ensure the script is run as the main module
+    if __name__ == "__main__":
+        main()
+    else:
+        print("This script should be run as the main module.")
+        sys.exit(1)
+#

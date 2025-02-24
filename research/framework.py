@@ -1,12 +1,10 @@
-"""
-Automated Prompt Engineering Research Framework
-"""
-import time
+# research/framework.py
+
 from typing import List, Dict, Any
 from dataclasses import dataclass
 from statistics import mean, stdev
-# research/framework.py
 from prompt.prompt_refiner import iterative_prompt_refinement
+from prompt.template_generator import determine_template, detect_role, detect_task_type, detect_prompt_technique
 
 @dataclass
 class TestCase:
@@ -15,18 +13,6 @@ class TestCase:
     expected_role: str
     expected_technique: str
     description: str
-
-@dataclass
-class ExperimentResult:
-    query: str
-    technique: str
-    parameters: Dict[str, Any]
-    quality_score: float
-    iterations_used: int
-    time_taken: float
-    final_prompt: str
-    role_used: str
-    reasoning: str
 
 class PromptResearchFramework:
     """Framework for conducting prompt engineering research"""
@@ -88,39 +74,65 @@ class PromptResearchFramework:
             {"temperature": 0.2, "num_ctx": 4096, "num_predict": 2048},
             {"temperature": 0.5, "num_ctx": 4096, "num_predict": 2048}
         ]
-        
-    def run_experiment(self, test_case: TestCase, technique: str, 
-                      parameters: Dict[str, Any]) -> ExperimentResult:
-        """Run a single experiment with given parameters"""
-        start_time = time.time()
-        
-        # Configure the refinement process
-        config = {
-            "technique": technique,
-            "min_iterations": 3,
-            "threshold": 0.9,
-            "parameters": parameters
-        }
-        
-        # Run the refinement
-        result = iterative_prompt_refinement(test_case.query, **config)
-        
-        # Calculate time taken
-        time_taken = time.time() - start_time
-        
-        return ExperimentResult(
-            query=test_case.query,
-            technique=technique,
-            parameters=parameters,
-            quality_score=result.get("final_quality", 0.0),
-            iterations_used=result.get("iterations_used", 0),
-            time_taken=time_taken,
-            final_prompt=result.get("final_prompt", ""),
-            role_used=result.get("role", ""),
-            reasoning=result.get("reasoning", "")
-        )
     
-    def run_full_evaluation(self) -> List[ExperimentResult]:
+    def run_experiment(self, test_case: TestCase, technique: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Run a single experiment with given parameters"""
+        try:
+            # First, get base template configuration
+            template_config = determine_template(test_case.query)
+            
+            # Override technique for experiment
+            template_config["technique"] = technique
+            
+            # Update parameters
+            template_config["parameters"].update(parameters)
+            
+            # Run refinement with this configuration
+            result = iterative_prompt_refinement(
+                test_case.query,
+                min_iterations=3,
+                threshold=0.9
+            )
+            
+            if result:
+                # Add experiment metadata
+                result.update({
+                    "original_query": test_case.query,
+                    "technique_used": technique,
+                    "parameters_used": parameters,
+                    "expected_role": test_case.expected_role,
+                    "category": test_case.category,
+                    "detected_role": template_config.get("role"),
+                    "detected_task_type": template_config.get("task_type"),
+                    "template_used": template_config.get("template")
+                })
+            
+            return result
+            
+        except Exception as e:
+            print(f"Error in experiment: {str(e)}")
+            return None
+    
+    def analyze_experiment_accuracy(self, results: List[Dict[str, Any]]) -> Dict[str, float]:
+        """Analyze accuracy of our template detection"""
+        if not results:
+            return {
+                "role_detection_accuracy": 0.0,
+                "technique_detection_accuracy": 0.0,
+                "task_type_detection_accuracy": 0.0
+            }
+            
+        role_matches = sum(1 for r in results 
+                         if r.get("detected_role") == r.get("expected_role", ""))
+        technique_matches = sum(1 for r in results 
+                              if r.get("technique_used") == r.get("expected_technique", ""))
+        
+        return {
+            "role_detection_accuracy": role_matches / len(results),
+            "technique_detection_accuracy": technique_matches / len(results)
+        }
+    
+    def run_full_evaluation(self) -> List[Dict[str, Any]]:
         """Run complete evaluation across all test cases and variations"""
         results = []
         
@@ -135,102 +147,61 @@ class PromptResearchFramework:
                 for params in self.parameter_sets:
                     print(f"Parameters: {params}")
                     
-                    try:
-                        result = self.run_experiment(test_case, technique, params)
+                    result = self.run_experiment(test_case, technique, params)
+                    if result:
                         results.append(result)
-                        
-                        print(f"Quality Score: {result.quality_score:.2f}")
-                        print(f"Time Taken: {result.time_taken:.2f}s")
-                        print(f"Iterations: {result.iterations_used}")
-                        
-                    except Exception as e:
-                        print(f"Error in experiment: {e}")
         
         return results
     
-    def analyze_results(self, results: List[ExperimentResult]) -> Dict[str, Any]:
+    def analyze_results(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Analyze experimental results"""
+        if not results:
+            return {
+                "error": "No successful experiments to analyze",
+                "technique_performance": {},
+                "parameter_impact": {},
+                "detection_accuracy": {
+                    "role_detection_accuracy": 0.0,
+                    "technique_detection_accuracy": 0.0
+                }
+            }
+            
         analysis = {
             "technique_performance": {},
             "parameter_impact": {},
-            "role_accuracy": {},
-            "time_efficiency": {},
-            "quality_distribution": {}
+            "detection_accuracy": self.analyze_experiment_accuracy(results)
         }
         
         # Analyze technique performance
         for technique in self.techniques:
-            technique_results = [r for r in results if r.technique == technique]
+            technique_results = [r for r in results if r.get("technique_used") == technique]
             if technique_results:
+                quality_scores = [r.get("final_quality", 0) for r in technique_results]
+                iterations = [r.get("iterations_used", 0) for r in technique_results]
+                
                 analysis["technique_performance"][technique] = {
-                    "avg_quality": mean(r.quality_score for r in technique_results),
-                    "std_quality": stdev(r.quality_score for r in technique_results),
-                    "avg_iterations": mean(r.iterations_used for r in technique_results)
+                    "avg_quality": mean(quality_scores),
+                    "std_quality": stdev(quality_scores) if len(quality_scores) > 1 else 0,
+                    "avg_iterations": mean(iterations)
                 }
         
         # Analyze parameter impact
         for params in self.parameter_sets:
             param_key = f"temp_{params['temperature']}_ctx_{params['num_ctx']}"
             param_results = [r for r in results 
-                           if r.parameters["temperature"] == params["temperature"]
-                           and r.parameters["num_ctx"] == params["num_ctx"]]
+                           if r.get("parameters_used", {}).get("temperature") == params["temperature"]
+                           and r.get("parameters_used", {}).get("num_ctx") == params["num_ctx"]]
+            
             if param_results:
+                quality_scores = [r.get("final_quality", 0) for r in param_results]
+                time_taken = [r.get("time_taken", 0) for r in param_results]
+                
                 analysis["parameter_impact"][param_key] = {
-                    "avg_quality": mean(r.quality_score for r in param_results),
-                    "avg_time": mean(r.time_taken for r in param_results)
+                    "avg_quality": mean(quality_scores),
+                    "avg_time": mean(time_taken)
                 }
-        
-        # Calculate role matching accuracy
-        role_matches = 0
-        for test_case in self.test_cases:
-            case_results = [r for r in results if r.query == test_case.query]
-            for result in case_results:
-                if result.role_used == test_case.expected_role:
-                    role_matches += 1
-        
-        analysis["role_accuracy"] = role_matches / len(results)
-        
+                if len(quality_scores) > 1:
+                    analysis["parameter_impact"][param_key]["std_quality"] = stdev(quality_scores)
+                    analysis["parameter_impact"][param_key]["std_time"] = stdev(time_taken)
+                    
         return analysis
-    
-    def generate_report(self, results: List[ExperimentResult], 
-                       analysis: Dict[str, Any]) -> str:
-        """Generate a research report from the results"""
-        report = """
-# Automated Prompt Engineering: Experimental Results
-
-## Overview
-This report presents the findings from our experimental evaluation of various 
-prompt engineering techniques and their effectiveness across different types of queries.
-
-## Methodology
-We tested {num_techniques} different techniques across {num_test_cases} test cases,
-with {num_param_sets} parameter variations for each combination.
-
-## Key Findings
-
-### 1. Technique Performance
-""".format(
-            num_techniques=len(self.techniques),
-            num_test_cases=len(self.test_cases),
-            num_param_sets=len(self.parameter_sets)
-        )
-        
-        # Add technique performance details
-        for technique, metrics in analysis["technique_performance"].items():
-            report += f"\n{technique}:\n"
-            report += f"- Average Quality: {metrics['avg_quality']:.2f}\n"
-            report += f"- Quality StdDev: {metrics['std_quality']:.2f}\n"
-            report += f"- Average Iterations: {metrics['avg_iterations']:.1f}\n"
-        
-        # Add parameter impact analysis
-        report += "\n### 2. Parameter Impact\n"
-        for param_key, metrics in analysis["parameter_impact"].items():
-            report += f"\n{param_key}:\n"
-            report += f"- Average Quality: {metrics['avg_quality']:.2f}\n"
-            report += f"- Average Time: {metrics['avg_time']:.2f}s\n"
-        
-        # Add role accuracy
-        report += f"\n### 3. Role Selection Accuracy\n"
-        report += f"Overall role matching accuracy: {analysis['role_accuracy']:.2%}\n"
-        
-        return report
