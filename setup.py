@@ -10,6 +10,8 @@ setup(
         'matplotlib',
         'seaborn',
         'pandas',
-        'numpy'
+        'numpy',
+        'requests',
+        'jinja2'  # Added missing dependencies
     ]
 )

@@ -2,7 +2,7 @@
 # Import necessary modules
 import json
 import re
-from config._pipeline import create_payload, model_req
+from config._pipeline import create_payload, model_req  # Use relative import
 
 def call_llm_for_analysis(meta_prompt, model="llama3.2:latest", target="open-webui", **model_params):
     """
