@@ -5,7 +5,7 @@ Research Framework for Prompt Engineering Analysis
 """
 
 from .framework import PromptResearchFramework
-from .reporter import ResearchReporter
+from .reporting.reporter import ResearchReporter
 
 __all__ = [
     'PromptResearchFramework',

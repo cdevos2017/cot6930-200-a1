@@ -1,0 +1,58 @@
+[
+    {
+        "query": "Create user requirements for a fitness tracking mobile app",
+        "category": "requirements_elicitation",
+        "expected_role": "Requirements Engineer",
+        "expected_technique": "structured_output",
+        "description": "Fitness app requirements elicitation task"
+    },
+    {
+        "query": "Extract functional requirements from this user story: 'As a customer, I want to be able to reset my password so that I can regain access to my account if I forget it.'",
+        "category": "requirements_analysis",
+        "expected_role": "Business Analyst",
+        "expected_technique": "chain_of_thought",
+        "description": "User story analysis task"
+    },
+    {
+        "query": "Identify non-functional requirements for a hospital management system",
+        "category": "requirements_specification",
+        "expected_role": "Systems Analyst",
+        "expected_technique": "tree_of_thought",
+        "description": "Non-functional requirements task"
+    },
+    {
+        "query": "Create acceptance criteria for a feature that allows users to share documents with team members",
+        "category": "requirements_validation",
+        "expected_role": "Product Manager",
+        "expected_technique": "structured_output",
+        "description": "Acceptance criteria development task"
+    },
+    {
+        "query": "Analyze stakeholder needs for an e-commerce checkout process",
+        "category": "stakeholder_analysis",
+        "expected_role": "Requirements Engineer",
+        "expected_technique": "socratic",
+        "description": "Stakeholder analysis task"
+    },
+    {
+        "query": "Transform these business rules into technical requirements: 'All transactions over $10,000 must be approved by a manager. No single user can approve their own transactions.'",
+        "category": "requirements_transformation",
+        "expected_role": "Business Analyst",
+        "expected_technique": "chain_of_thought",
+        "description": "Business rules transformation task"
+    },
+    {
+        "query": "Create a use case diagram description for a library management system",
+        "category": "requirements_modeling",
+        "expected_role": "Systems Analyst",
+        "expected_technique": "structured_output",
+        "description": "Use case modeling task"
+    },
+    {
+        "query": "Identify potential conflicts in these requirements: 'The system must maximize security' and 'The system must be user-friendly with minimal authentication steps'",
+        "category": "requirements_conflict_analysis",
+        "expected_role": "Requirements Engineer",
+        "expected_technique": "tree_of_thought",
+        "description": "Requirements conflict analysis task"
+    }
+]
