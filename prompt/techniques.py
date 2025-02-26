@@ -1,59 +1,63 @@
 """
-Advanced Prompt Engineering Techniques for Requirements Analysis.
+Prompt Engineering Techniques Module
 
-This module contains multi-level prompt engineering techniques specifically designed
-for requirements elicitation, analysis, and refinement.
+This module contains all prompt techniques logic and functionality,
+separated from the actual templates and parameter configurations.
 """
 
-from typing import Dict, List, Optional, Union, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple
+
+# Import templates from the dedicated templates module
+# Make sure techniques.py properly imports from templates.py
+from .templates import (
+    get_technique_template,
+    get_role_template,
+    get_l1_technique_template,
+    get_l2_technique_step_template,
+    get_l2_technique_steps_count
+)
+
+# Technique descriptions - metadata about different techniques
+BASIC_TECHNIQUES = {
+    "zero_shot": {
+        "description": "Direct approach without examples or special formatting",
+    },
+    "few_shot": {
+        "description": "Uses examples to guide the model's response",
+    },
+    "chain_of_thought": {
+        "description": "Encourages step-by-step reasoning",
+    },
+    "self_consistency": {
+        "description": "Considers multiple approaches to verify consistency",
+    },
+    "tree_of_thought": {
+        "description": "Explores multiple reasoning paths",
+    },
+    "role_playing": {
+        "description": "Assumes a specific expert role",
+    },
+    "structured_output": {
+        "description": "Provides output in a specific format",
+    },
+    "socratic": {
+        "description": "Uses self-questioning to approach the problem",
+    },
+    "guided_conversation": {
+        "description": "Uses guided steps to analyze and respond",
+    }
+}
 
 # Level-1 techniques use a meta-prompt to generate more effective prompts
 L1_TECHNIQUES = {
     "meta_prompt": {
         "description": "Uses a prompt to generate another prompt for requirement analysis",
-        "template": """
-        Create an effective prompt that will elicit comprehensive and structured requirements for this task:
-
-        {query}
-
-        Your prompt should:
-        1. Ask clarifying questions about scope and constraints
-        2. Guide the analysis through different requirement categories
-        3. Help identify both explicit and implicit requirements
-        4. Ensure requirements are testable and measurable
-        """
     },
     "stakeholder_perspective": {
         "description": "Analyzes requirements from multiple stakeholder perspectives",
-        "template": """
-        Analyze the following requirement task from three different stakeholder perspectives:
-
-        {query}
-
-        For each perspective (End User, Business Owner, Technical Team):
-        1. What are the key priorities and concerns?
-        2. What specific requirements would they emphasize?
-        3. What potential conflicts might arise between perspectives?
-        4. How can these requirements be reconciled into a comprehensive specification?
-        """
     },
     "quality_criteria": {
         "description": "Structures requirements using quality attributes",
-        "template": """
-        Develop detailed requirements for the following task by systematically addressing quality attributes:
-
-        {query}
-
-        For each of these quality attributes:
-        - Functionality: What should the system do?
-        - Usability: How will users interact with it?
-        - Reliability: How should it perform under stress?
-        - Performance: What are the speed/efficiency requirements?
-        - Security: What protections should be in place?
-        - Maintainability: How can it be designed for future change?
-
-        Format each requirement to be specific, measurable, achievable, relevant, and time-bound (SMART).
-        """
     }
 }
 
@@ -61,148 +65,16 @@ L1_TECHNIQUES = {
 L2_TECHNIQUES = {
     "refinement_chain": {
         "description": "Uses a chain of prompts to progressively refine requirements",
-        "templates": [
-            # First step: Initial requirements gathering
-            """
-            Generate an initial set of requirements based on this task:
-            
-            {query}
-            
-            Focus on capturing the core functionality and main user needs.
-            List at least 5 high-level requirements.
-            """,
-            
-            # Second step: Analysis and elaboration
-            """
-            Analyze the following initial requirements:
-            
-            {previous_response}
-            
-            For each requirement:
-            1. Identify any ambiguities or missing details
-            2. Add acceptance criteria
-            3. Consider edge cases and exceptions
-            4. Categorize as functional or non-functional
-            """,
-            
-            # Third step: Quality check and refinement
-            """
-            Review and refine these analyzed requirements:
-            
-            {previous_response}
-            
-            For each requirement:
-            1. Ensure it's specific, measurable, achievable, relevant, and time-bound (SMART)
-            2. Remove any redundancies or conflicts
-            3. Add priority levels (High/Medium/Low)
-            4. Provide a rationale for each requirement
-            
-            Present the final requirements in a structured format suitable for technical documentation.
-            """
-        ]
     },
     "divergent_convergent": {
         "description": "First diverges to explore many possible requirements, then converges to select the best ones",
-        "templates": [
-            # First step: Divergent thinking
-            """
-            For the following task, generate as many potential requirements as possible through divergent thinking:
-            
-            {query}
-            
-            Consider:
-            - Different user types and their needs
-            - Various use cases and scenarios
-            - Functional requirements
-            - Non-functional requirements
-            - Business rules and constraints
-            - Technical considerations
-            
-            Don't filter or evaluate at this stage - aim for quantity and diversity.
-            """,
-            
-            # Second step: Evaluation
-            """
-            Review the following list of potential requirements:
-            
-            {previous_response}
-            
-            Evaluate each requirement based on:
-            1. Value to users and business
-            2. Technical feasibility
-            3. Alignment with project scope
-            4. Potential implementation complexity
-            
-            For each requirement, provide a score of 1-5 in each category and brief justification.
-            """,
-            
-            # Third step: Convergent thinking
-            """
-            Based on your evaluation:
-            
-            {previous_response}
-            
-            1. Select the top 10-15 most valuable and feasible requirements
-            2. Organize them into a coherent specification
-            3. Identify dependencies between requirements
-            4. Suggest an implementation priority order
-            
-            Present the final requirement specification in a clear, structured format.
-            """
-        ]
     },
     "adverse_analysis": {
         "description": "Uses adversarial thinking to identify missing requirements and edge cases",
-        "templates": [
-            # First step: Generate baseline requirements
-            """
-            Create a baseline set of requirements for:
-            
-            {query}
-            
-            Focus on the happy path scenarios and core functionality.
-            """,
-            
-            # Second step: Adversarial analysis
-            """
-            Analyze these baseline requirements from an adversarial perspective:
-            
-            {previous_response}
-            
-            For each requirement:
-            1. How could it fail or be misinterpreted?
-            2. What edge cases are not covered?
-            3. How might users misuse or abuse this feature?
-            4. What security vulnerabilities might exist?
-            5. What performance issues could arise?
-            
-            Identify at least 3 issues for each requirement.
-            """,
-            
-            # Third step: Refinement and hardening
-            """
-            Based on the adversarial analysis:
-            
-            {previous_response}
-            
-            1. Refine each original requirement to address the identified issues
-            2. Add new requirements to cover gaps and edge cases
-            3. Include explicit error handling and validation requirements
-            4. Specify security and performance safeguards
-            
-            Present the improved, hardened requirements specification.
-            """
-        ]
     }
 }
 
-def get_l1_technique_names() -> List[str]:
-    """Get a list of available Level-1 technique names."""
-    return list(L1_TECHNIQUES.keys())
-
-def get_l2_technique_names() -> List[str]:
-    """Get a list of available Level-2 technique names."""
-    return list(L2_TECHNIQUES.keys())
+# Core technique functions
 
 def get_technique_description(technique_name: str) -> str:
     """
@@ -213,16 +85,92 @@ def get_technique_description(technique_name: str) -> str:
         
     Returns:
         Description of the technique
-        
-    Raises:
-        ValueError: If the technique name is not recognized
     """
-    if technique_name in L1_TECHNIQUES:
+    if technique_name in BASIC_TECHNIQUES:
+        return BASIC_TECHNIQUES[technique_name]["description"]
+    elif technique_name in L1_TECHNIQUES:
         return L1_TECHNIQUES[technique_name]["description"]
     elif technique_name in L2_TECHNIQUES:
         return L2_TECHNIQUES[technique_name]["description"]
     else:
-        raise ValueError(f"Unknown technique: {technique_name}")
+        return f"Unknown technique: {technique_name}"
+
+def select_technique(message: str, task_type: str) -> str:
+    """
+    Select the most appropriate prompt technique based on message content and task type.
+    
+    Args:
+        message: The user's query
+        task_type: Type of task being performed
+        
+    Returns:
+        Name of the selected technique
+    """
+    # Task-specific technique mapping
+    task_technique_map = {
+        "math": "chain_of_thought",  # Math problems benefit from step-by-step thinking
+        "reasoning": "tree_of_thought",  # Complex reasoning benefits from exploring multiple paths
+        "analysis": "self_consistency",  # Analysis benefits from multiple approaches
+        "coding": "chain_of_thought",  # Coding benefits from step-by-step breakdown
+        "explanation": "socratic",  # Explanations benefit from questioning approach
+        "creative": "role_playing",  # Creative tasks benefit from role immersion
+        "structured": "structured_output"  # When specific output format is needed
+    }
+    
+    # Content-based technique detection
+    message_lower = message.lower()
+    
+    # Look for specific indicators in the message
+    if any(x in message_lower for x in ["steps", "how to", "explain steps", "process"]):
+        return "chain_of_thought"
+    elif any(x in message_lower for x in ["compare", "different ways", "alternatives", "options"]):
+        return "tree_of_thought"
+    elif any(x in message_lower for x in ["analyze", "examine", "evaluate"]):
+        return "self_consistency"
+    elif any(x in message_lower for x in ["why", "explain", "reason"]):
+        return "socratic"
+    elif any(x in message_lower for x in ["format", "structure", "organize"]):
+        return "structured_output"
+    
+    # Fall back to task-based technique
+    return task_technique_map.get(task_type, "zero_shot")
+
+def apply_technique(message: str, technique: str, role: Optional[str] = None) -> str:
+    """
+    Apply a specific prompt technique to a message.
+    
+    Args:
+        message: The message to enhance
+        technique: The technique to apply
+        role: Optional role context
+        
+    Returns:
+        Enhanced message using the technique
+    """
+    try:
+        template = get_technique_template(technique)
+        format_dict = {
+            "query": message,
+            "role": role if role else "Assistant",
+            # Add default placeholders for specific techniques
+            "approach1": "Consider the fundamental principles",
+            "approach2": "Think about edge cases",
+            "approach3": "Look for patterns or similarities"
+        }
+        return template.format(**format_dict)
+    except (KeyError, AttributeError, ValueError) as e:
+        print(f"Warning: Failed to apply technique {technique}: {e}")
+        return message
+
+# Level-1 and Level-2 technique functions
+
+def get_l1_technique_names() -> List[str]:
+    """Get a list of available Level-1 technique names."""
+    return list(L1_TECHNIQUES.keys())
+
+def get_l2_technique_names() -> List[str]:
+    """Get a list of available Level-2 technique names."""
+    return list(L2_TECHNIQUES.keys())
 
 def apply_l1_technique(query: str, technique_name: str) -> str:
     """
@@ -234,33 +182,9 @@ def apply_l1_technique(query: str, technique_name: str) -> str:
         
     Returns:
         Formatted prompt using the specified technique
-        
-    Raises:
-        ValueError: If the technique name is not recognized
     """
-    if technique_name not in L1_TECHNIQUES:
-        raise ValueError(f"Unknown L1 technique: {technique_name}")
-    
-    technique = L1_TECHNIQUES[technique_name]
-    return technique["template"].format(query=query)
-
-def get_l2_technique_steps(technique_name: str) -> int:
-    """
-    Get the number of steps in a Level-2 technique.
-    
-    Args:
-        technique_name: Name of the Level-2 technique
-        
-    Returns:
-        Number of steps in the technique
-        
-    Raises:
-        ValueError: If the technique name is not recognized
-    """
-    if technique_name not in L2_TECHNIQUES:
-        raise ValueError(f"Unknown L2 technique: {technique_name}")
-    
-    return len(L2_TECHNIQUES[technique_name]["templates"])
+    template = get_l1_technique_template(technique_name)
+    return template.format(query=query)
 
 def execute_l2_technique_step(
     query: str, 
@@ -279,21 +203,13 @@ def execute_l2_technique_step(
         
     Returns:
         Formatted prompt for the specified step
-        
-    Raises:
-        ValueError: If the technique name is not recognized or the step is invalid
     """
-    if technique_name not in L2_TECHNIQUES:
-        raise ValueError(f"Unknown L2 technique: {technique_name}")
+    template = get_l2_technique_step_template(technique_name, step)
     
-    technique = L2_TECHNIQUES[technique_name]
-    
-    if step < 0 or step >= len(technique["templates"]):
-        raise ValueError(f"Invalid step {step} for technique {technique_name}. "
-                         f"Valid steps are 0-{len(technique['templates'])-1}.")
-    
-    template = technique["templates"][step]
-    
+    if not template:
+        print(f"Warning: No template found for {technique_name} step {step}. Using original query.")
+        return query
+        
     if previous_response:
         return template.format(query=query, previous_response=previous_response)
     else:
@@ -316,22 +232,22 @@ def execute_l2_technique_full(
         
     Returns:
         Tuple of (prompts, responses) where each is a list containing the prompt/response for each step
-        
-    Raises:
-        ValueError: If the technique name is not recognized
     """
-    if technique_name not in L2_TECHNIQUES:
-        raise ValueError(f"Unknown L2 technique: {technique_name}")
+    num_steps = get_l2_technique_steps_count(technique_name)
     
-    technique = L2_TECHNIQUES[technique_name]
-    num_steps = len(technique["templates"])
+    if num_steps == 0:
+        print(f"Warning: Unknown L2 technique: {technique_name}. Using single step with original query.")
+        prompt = query
+        response = model_call_fn(prompt, **(step_params[0] if step_params else {}))
+        return [prompt], [response]
     
     # Initialize default parameters if not provided
     if step_params is None:
         step_params = [{}] * num_steps
     elif len(step_params) != num_steps:
-        raise ValueError(f"Parameter list length ({len(step_params)}) must match "
-                        f"number of steps ({num_steps})")
+        print(f"Warning: Parameter list length ({len(step_params)}) doesn't match "
+              f"number of steps ({num_steps}). Using default parameters.")
+        step_params = [{}] * num_steps
     
     prompts = []
     responses = []
