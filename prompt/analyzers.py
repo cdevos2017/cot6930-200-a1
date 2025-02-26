@@ -3,6 +3,7 @@
 import json
 import re
 from config._pipeline import create_payload, model_req  # Use relative import
+from .techniques import BASIC_TECHNIQUES, L1_TECHNIQUES
 
 def call_llm_for_analysis(meta_prompt, model="llama3.2:latest", target="open-webui", **model_params):
     """
@@ -61,6 +62,8 @@ def parse_json_response(response):
         "quality_score": 0.7,
         "improved_prompt": None,
         "role": "Mathematician",
+        "technique": "chain_of_thought",  # Changed from "zero_shot" to a known technique
+        "task_type": "math",
         "template": "Calculate the following mathematical expression step-by-step: {query}",
         "parameters": {
             "temperature": 0.2,
@@ -86,6 +89,16 @@ def parse_json_response(response):
             # Try to parse the JSON
             try:
                 result = json.loads(json_str)
+                # If technique is provided but not recognized, use a default
+                if "technique" in result:
+                    technique = result["technique"]
+                    valid_techniques = list(BASIC_TECHNIQUES.keys()) + list(L1_TECHNIQUES.keys())
+                    
+                    # Check if the technique exists in our catalogs
+                    if technique not in valid_techniques:
+                        print(f"Warning: Unknown technique '{technique}'. Using 'chain_of_thought' instead.")
+                        result["technique"] = "chain_of_thought"
+                
                 return result
             except json.JSONDecodeError as e:
                 print(f"JSON parsing error: {e}")

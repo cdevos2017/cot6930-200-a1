@@ -10,18 +10,20 @@ import os
 import json
 import time
 import sys
+from typing import List, Dict, Any
+
 import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from typing import List, Dict, Any
+
 
 # Import framework components
 from research.framework import PromptResearchFramework
 from research.test_cases import TestCase
 from research.reporting.reporter import ResearchReporter
 
-# Import the requirements analysis techniques
+# Import the prompt engineering modules with correct paths
 from prompt.techniques import (
     get_l1_technique_names,
     get_l2_technique_names,
@@ -110,6 +112,9 @@ def run_l2_experiment(framework, test_cases, technique_name, technique_config):
     print(f"\nRunning Level-2 technique: {technique_name}")
     results = []
     
+    # Import the function to get step count
+    from prompt.templates import get_l2_technique_steps_count
+    
     for test_case in test_cases:
         # We need to simulate the chain of prompts for L2 techniques
         print(f"  Processing task: {test_case.description}")
@@ -122,8 +127,12 @@ def run_l2_experiment(framework, test_cases, technique_name, technique_config):
         previous_response = None
         chain_results = []
         
-        # Process each step in the chain
-        num_steps = len(technique_config["templates"])
+        # Get number of steps from templates module instead of config dictionary
+        num_steps = get_l2_technique_steps_count(technique_name)
+        if num_steps == 0:
+            print(f"Warning: No steps found for technique {technique_name}")
+            continue
+            
         for i in range(num_steps):
             # Format the template with the original query and previous response if available
             l2_query = execute_l2_technique_step(
@@ -167,11 +176,11 @@ def parse_arguments():
     """Parse command-line arguments"""
     parser = argparse.ArgumentParser(description="Run requirement analysis prompt engineering experiments")
     
-    parser.add_argument("--test-cases", type=str, default="research/requirements_analysis/requirements_test_cases.json", 
-                        help="Path to test cases JSON file")
-    parser.add_argument("--params", type=str, default="research/requirements_analysis/custom_parameters.json",
+    parser.add_argument("--test-cases", type=str, default="research/experiments/requirements_analysis/requirements_test_cases.json", 
+                    help="Path to test cases JSON file")
+    parser.add_argument("--params", type=str, default=None,
                         help="Path to custom parameter sets JSON file")
-    parser.add_argument("--output", type=str, default="research/output", 
+    parser.add_argument("--output", type=str, default="research/research_output", 
                         help="Output directory")
     parser.add_argument("--limit", type=int, help="Limit the number of test cases to run")
     parser.add_argument("--l1-only", action="store_true", 
@@ -291,6 +300,7 @@ def generate_charts(results, output_dir):
         'temperature_impact': os.path.join(output_dir, 'temperature_impact.png')
     }
 
+# Main function to run the experiment
 def main():
     """Main function to run the experiment"""
     args = parse_arguments()
@@ -299,7 +309,9 @@ def main():
     test_cases = load_test_cases(args.test_cases)
     
     # Load parameter sets
-    parameter_sets = load_parameter_sets(args.params)
+    parameter_sets = DEFAULT_PARAMETER_SETS
+    if args.params:
+        parameter_sets = load_parameter_sets(args.params)
     
     # Limit test cases if specified
     if args.limit and args.limit > 0 and args.limit < len(test_cases):
@@ -420,6 +432,7 @@ def main():
     
     # Generate report
     print("\nGenerating research report...")
+    ensure_directories_exist(args.output)
     reporter = ResearchReporter(output_dir=args.output)
     
     # Create a report
@@ -456,5 +469,20 @@ def main():
     
     return 0
 
+def ensure_directories_exist(output_dir):
+    """Ensure all necessary directories exist"""
+    from pathlib import Path
+    
+    # Create output directory with parents
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    
+    # Create specialized visualizations directory if needed
+    viz_dir = Path(output_dir).joinpath("specialized_visualizations")
+    viz_dir.mkdir(parents=True, exist_ok=True)
+
+# Then in your main() function, add a call to this function before initializing the reporter:
+# ensure_directories_exist(args.output)
+
+# Then keep your if __name__ block simple:
 if __name__ == "__main__":
     sys.exit(main())

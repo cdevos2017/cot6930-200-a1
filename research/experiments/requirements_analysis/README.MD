@@ -77,7 +77,7 @@ All outputs are saved to the `research/output` directory.
 
 ```
 @misc{requirement_analysis_prompt_engineering,
-  author = {Your Name},
+  author = Chad Devos M.S.,
   title = {Automated Requirement Analysis: Comparative Study of Multi-Level Prompt Engineering Techniques},
   year = {2025},
   url = {https://github.com/yourusername/requirements-analysis-prompt-engineering}

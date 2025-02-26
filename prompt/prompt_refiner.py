@@ -1,77 +1,14 @@
-# prompt_refiner.py
+"""
+Prompt refinement module for iteratively improving prompts.
+"""
 
 import time
 from .analyzers import call_llm_for_analysis, parse_json_response
 from .template_generator import determine_template
-from .utils import format_prompt_with_template, get_parameters_for_task, validate_parameters
-from .default_templates import get_prompt_technique
-
-def select_prompt_technique(message, task_type):
-    """
-    Select the most appropriate prompt technique based on message content and task type.
-    
-    Args:
-        message (str): The user's query
-        task_type (str): Type of task being performed
-        
-    Returns:
-        str: Name of the selected technique
-    """
-    # Task-specific technique mapping
-    task_technique_map = {
-        "math": "chain_of_thought",  # Math problems benefit from step-by-step thinking
-        "reasoning": "tree_of_thought",  # Complex reasoning benefits from exploring multiple paths
-        "analysis": "self_consistency",  # Analysis benefits from multiple approaches
-        "coding": "chain_of_thought",  # Coding benefits from step-by-step breakdown
-        "explanation": "socratic",  # Explanations benefit from questioning approach
-        "creative": "role_playing",  # Creative tasks benefit from role immersion
-        "structured": "structured_output"  # When specific output format is needed
-    }
-    
-    # Content-based technique detection
-    message_lower = message.lower()
-    
-    # Look for specific indicators in the message
-    if any(x in message_lower for x in ["steps", "how to", "explain steps", "process"]):
-        return "chain_of_thought"
-    elif any(x in message_lower for x in ["compare", "different ways", "alternatives", "options"]):
-        return "tree_of_thought"
-    elif any(x in message_lower for x in ["analyze", "examine", "evaluate"]):
-        return "self_consistency"
-    elif any(x in message_lower for x in ["why", "explain", "reason"]):
-        return "socratic"
-    elif any(x in message_lower for x in ["format", "structure", "organize"]):
-        return "structured_output"
-    
-    # Fall back to task-based technique
-    return task_technique_map.get(task_type, "zero_shot")
-
-def apply_prompt_technique(message, technique, role=None):
-    """
-    Apply a specific prompt technique to a message.
-    
-    Args:
-        message (str): The message to enhance
-        technique (str): The technique to apply
-        role (str, optional): The role context
-        
-    Returns:
-        str: Enhanced message using the technique
-    """
-    try:
-        template = get_prompt_technique(technique)
-        format_dict = {
-            "query": message,
-            "role": role if role else "Assistant",
-            # Add default placeholders for specific techniques
-            "approach1": "Consider the fundamental principles",
-            "approach2": "Think about edge cases",
-            "approach3": "Look for patterns or similarities"
-        }
-        return template.format(**format_dict)
-    except (KeyError, AttributeError) as e:
-        print(f"Warning: Failed to apply technique {technique}: {e}")
-        return message
+from .utils import format_prompt_with_template
+from .techniques import select_technique
+from .templates import get_technique_template
+from .parameters import validate_parameters, get_parameters_for_task
 
 def iterative_prompt_refinement(initial_message, min_iterations=3, max_iterations=5, threshold=0.9):
     """
@@ -226,16 +163,28 @@ def format_final_prompt(config, original_message):
         if "final_prompt" in config:
             final_prompt = config["final_prompt"]
             
-            # Remove refinement markers
-            final_prompt = final_prompt.replace("(Please refine this further)", "").strip()
-            
-            # Format with appropriate templates if needed
-            return format_prompt_with_template(
-                final_prompt,
-                original_message,
-                role=config.get("role"),
-                technique=config.get("technique")
-            )
+            # Check if final_prompt is a string
+            if isinstance(final_prompt, str):
+                # Remove refinement markers
+                final_prompt = final_prompt.replace("(Please refine this further)", "").strip()
+                
+                # Format with appropriate templates if needed
+                return format_prompt_with_template(
+                    final_prompt,
+                    original_message,
+                    role=config.get("role"),
+                    technique=config.get("technique")
+                )
+            elif isinstance(final_prompt, dict):
+                # If it's a dictionary, extract the text or return original
+                if "text" in final_prompt:
+                    return final_prompt["text"]
+                else:
+                    print(f"Error: final_prompt is a dict without text field: {final_prompt}")
+                    return original_message
+            else:
+                print(f"Error: final_prompt is neither string nor dict: {type(final_prompt)}")
+                return original_message
     except (KeyError, ValueError, TypeError) as e:
         print(f"Error in format_final_prompt: {e}")
     
@@ -290,7 +239,7 @@ def _validate_and_clean_config(config, original_message):
     # Check for potential recursion in math prompts
     if config.get("task_type") == "math" and config.get("final_prompt"):
         final_prompt = config["final_prompt"]
-        if any(term in final_prompt.lower() for term in ["calculate", "solve", "compute", "evaluate"]):
+        if isinstance(final_prompt, str) and any(term in final_prompt.lower() for term in ["calculate", "solve", "compute", "evaluate"]):
             # For math tasks, ensure we're not creating recursive prompts
             config["final_prompt"] = original_message.strip()
     
@@ -301,7 +250,7 @@ def _validate_and_clean_config(config, original_message):
             config["template"] = "{query}"
     
     # Clean up final prompt
-    if "final_prompt" in config:
+    if "final_prompt" in config and isinstance(config["final_prompt"], str):
         final_prompt = config["final_prompt"]
         # Remove any refinement markers
         final_prompt = final_prompt.replace("(Please refine this further)", "").strip()

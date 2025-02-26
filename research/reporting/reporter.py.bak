@@ -26,7 +26,7 @@ class ResearchReporter:
     
     def __init__(self, output_dir: str = "research/research_output"):
         self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.output_dir.mkdir(exist_ok=True)
     
     def generate_report(self, results: List[Any], analysis: Dict[str, Any]) -> ResearchReport:
         """Generate a research report from results and analysis"""
@@ -56,7 +56,7 @@ class ResearchReporter:
         """Save all report files with robust error handling and detailed logging"""
         # Create experiment directory
         experiment_dir = self.output_dir / report.experiment_id
-        experiment_dir.mkdir(parents=True, exist_ok=True)
+        experiment_dir.mkdir(exist_ok=True)
         
         print(f"Saving report to: {experiment_dir}")
         

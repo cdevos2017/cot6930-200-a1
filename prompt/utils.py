@@ -1,13 +1,19 @@
-# utils.py
+"""
+Utility functions for prompt engineering.
+"""
 
 import json
 import re
-from typing import Dict, Any
-from prompt.default_templates import get_prompt_technique, get_role_template, get_task_parameters
+from typing import Dict, Any, Optional
 
+# Import from the centralized techniques module
+from prompt.techniques import (
+    get_role_template,
+    get_technique_template
+)
 
-def format_prompt_with_template(template: str, query: str, role: str = None, 
-                              technique: str = None, task_type: str = None) -> str:
+def format_prompt_with_template(template: str, query: str, role: Optional[str] = None, 
+                              technique: Optional[str] = None, task_type: Optional[str] = None) -> str:
     """
     Format a template with query, applying role and technique enhancements
     
@@ -22,76 +28,76 @@ def format_prompt_with_template(template: str, query: str, role: str = None,
         str: Formatted prompt
     """
     try:
+        # Ensure inputs are strings
+        if not isinstance(template, str):
+            print(f"Warning: template is not a string, type: {type(template)}. Using default.")
+            template = "{query}"
+        
+        if not isinstance(query, str):
+            if isinstance(query, dict) and "query" in query:
+                query = query["query"]
+            else:
+                print(f"Warning: query is not a string, type: {type(query)}. Converting to string.")
+                query = str(query)
+        
         current_query = query
         
         # Apply technique first if specified
         if technique:
-            technique_template = get_prompt_technique(technique)
-            format_dict = {
-                "query": current_query,
-                "role": role if role else "Assistant",
-                # Add default placeholders for specific techniques
-                "approach1": "Consider the fundamental principles",
-                "approach2": "Think about edge cases",
-                "approach3": "Look for patterns or similarities"
-            }
             try:
-                current_query = technique_template.format(**format_dict)
-            except KeyError as e:
+                technique_template = get_technique_template(technique)
+                
+                format_dict = {
+                    "query": current_query,
+                    "role": role if role else "Assistant",
+                    # Add default placeholders for specific techniques
+                    "approach1": "Consider the fundamental principles",
+                    "approach2": "Think about edge cases",
+                    "approach3": "Look for patterns or similarities"
+                }
+                
+                try:
+                    current_query = technique_template.format(**format_dict)
+                except KeyError as e:
+                    print(f"Warning: Failed to apply technique {technique}, missing key: {e}")
+                except Exception as e:
+                    print(f"Warning: Failed to apply technique {technique}: {e}")
+                    
+            except Exception as e:
                 print(f"Warning: Failed to apply technique {technique}: {e}")
         
         # Then apply role template if specified
         if role:
-            role_template = get_role_template(role)
             try:
-                current_query = role_template.format(query=current_query)
-            except KeyError as e:
+                role_template = get_role_template(role)
+                
+                try:
+                    current_query = role_template.format(query=current_query)
+                except KeyError as e:
+                    print(f"Warning: Failed to apply role {role}, missing key: {e}")
+                except Exception as e:
+                    print(f"Warning: Failed to apply role {role}: {e}")
+                    
+            except Exception as e:
                 print(f"Warning: Failed to apply role {role}: {e}")
         
         # Finally apply the base template
         if "{query}" in template:
-            return template.format(query=current_query)
-        
-        return current_query
+            try:
+                return template.format(query=current_query)
+            except KeyError as e:
+                print(f"Warning: Missing key in template: {e}. Using current query.")
+                return current_query
+            except Exception as e:
+                print(f"Warning: Failed to format template: {e}. Using current query.")
+                return current_query
+        else:
+            print(f"Warning: No {{query}} placeholder in template: {template}. Using current query.")
+            return current_query
     
     except Exception as e:
         print(f"Error in format_prompt_with_template: {e}")
         return query
-
-def get_parameters_for_task(task_type: str, base_params: dict = None) -> dict:
-    """Get parameters for a specific task type with optional base parameters"""
-    task_params = get_task_parameters(task_type).copy()
-    
-    if base_params:
-        task_params.update(base_params)
-    
-    return task_params
-
-def validate_parameters(params: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Validate and normalize model parameters
-    
-    Args:
-        params (dict): Parameters to validate
-        
-    Returns:
-        dict: Validated parameters
-    """
-    validated = params.copy()
-    
-    # Temperature bounds
-    if "temperature" in validated:
-        validated["temperature"] = max(0.0, min(1.0, float(validated["temperature"])))
-    
-    # Context window bounds
-    if "num_ctx" in validated:
-        validated["num_ctx"] = max(512, min(8192, int(validated["num_ctx"])))
-    
-    # Prediction length bounds
-    if "num_predict" in validated:
-        validated["num_predict"] = max(64, min(4096, int(validated["num_predict"])))
-    
-    return validated
 
 def format_response(response: str, task_type: str) -> str:
     """

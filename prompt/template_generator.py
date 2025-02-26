@@ -1,8 +1,16 @@
-# template_generator.py
+"""
+Module for template generation and selection.
+"""
 
-from .analyzers import call_llm_for_analysis, parse_json_response
-from .default_templates import get_role_template, get_prompt_technique, get_task_parameters
 import re
+from .analyzers import call_llm_for_analysis, parse_json_response
+# Corrected imports
+from .templates import (
+    get_role_template,
+    get_technique_template
+)
+from .techniques import select_technique
+from .parameters import get_parameters_for_task
 
 def determine_template(message, analysis_result=None):
     """
@@ -27,10 +35,15 @@ def determine_template(message, analysis_result=None):
     template = get_role_template(role)
     
     # Detect if we should apply any specific prompt techniques
-    technique = detect_prompt_technique(message)
+    technique = None
+    if analysis_result and "technique" in analysis_result:
+        technique = analysis_result["technique"]
+    else:
+        technique = detect_prompt_technique(message)
+        
     if technique:
         # Get the technique template
-        technique_template = get_prompt_technique(technique)
+        technique_template = get_technique_template(technique)
         try:
             # Combine role template with prompt technique
             template = technique_template.format(
@@ -41,8 +54,13 @@ def determine_template(message, analysis_result=None):
             print(f"Warning: Failed to apply technique template: {e}")
     
     # Get appropriate parameters
-    task_type = detect_task_type(message)
-    parameters = get_task_parameters(task_type)
+    task_type = None
+    if analysis_result and "task_type" in analysis_result:
+        task_type = analysis_result["task_type"]
+    else:
+        task_type = detect_task_type(message)
+        
+    parameters = get_parameters_for_task(task_type)
     
     return {
         "role": role,
@@ -100,29 +118,8 @@ def detect_prompt_technique(message):
     """
     Detect if a specific prompt technique should be applied.
     """
-    # Define technique patterns with priority (higher number = higher priority)
-    technique_patterns = {
-        "chain_of_thought": (r"(step[s]?|how to|process|method|solve|calculate)", 3),
-        "tree_of_thought": (r"(compare|different ways|alternatives|options|choose|decide)", 4),
-        "self_consistency": (r"(verify|check|confirm|validate|ensure|consistent)", 2),
-        "socratic": (r"(explain|why|reason|understand|concept)", 1),
-        "structured_output": (r"(format|structure|organize|list|categorize)", 2),
-        "role_playing": (r"(pretend|act as|simulate|behave as|respond as)", 3),
-        "few_shot": (r"(similar to|like|example|reference|previous)", 1)
-    }
-    
-    # Find all matching techniques
-    matched_techniques = {}
-    for technique, (pattern, priority) in technique_patterns.items():
-        matches = re.findall(pattern, message, re.IGNORECASE)
-        if matches:
-            matched_techniques[technique] = (len(matches), priority)
-    
-    if matched_techniques:
-        # Choose technique based on number of matches and priority
-        return max(matched_techniques.items(), key=lambda x: (x[1][0], x[1][1]))[0]
-    
-    return "zero_shot"  # Default technique
+    # Use the technique selection function from techniques.py
+    return select_technique(message, detect_task_type(message))
 
 def detect_task_type(message):
     """
