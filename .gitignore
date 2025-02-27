@@ -179,3 +179,11 @@ cython_debug/
 
 # Research output
 research_output/
+
+# VS Code
+.vscode/
+
+# settings files
+settings.json
+keybindings.json
+extensions.json
