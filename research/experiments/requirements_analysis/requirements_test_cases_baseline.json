@@ -1,0 +1,23 @@
+[
+    {
+        "query": "Create user requirements for a fitness tracking mobile app",
+        "category": "requirements_elicitation",
+        "expected_role": "Requirements Engineer",
+        "expected_technique": "structured_output",
+        "description": "Fitness app requirements elicitation task"
+    },
+    {
+        "query": "Identify non-functional requirements for a hospital management system",
+        "category": "requirements_specification",
+        "expected_role": "Systems Analyst",
+        "expected_technique": "tree_of_thought",
+        "description": "Non-functional requirements task"
+    },
+    {
+        "query": "Identify potential conflicts in these requirements: 'The system must maximize security' and 'The system must be user-friendly with minimal authentication steps'",
+        "category": "requirements_conflict_analysis",
+        "expected_role": "Requirements Engineer",
+        "expected_technique": "tree_of_thought",
+        "description": "Requirements conflict analysis task"
+    }
+]

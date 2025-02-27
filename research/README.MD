@@ -77,5 +77,3 @@ python latex_report_generator.py experiment_20250224_190643
 3. **Professional Reports**: Generate publication-quality LaTeX reports
 4. **Flexible Experimentation**: Run targeted experiments with specific categories of test cases
 5. **Comprehensive Analysis**: Get detailed insights with beautiful visualizations and statistical analysis
-
-Let me know if you'd like me to make any adjustments or if you have any questions about how to use these new tools!
