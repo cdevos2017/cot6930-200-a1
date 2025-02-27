@@ -182,8 +182,3 @@ research_output/
 
 # VS Code
 .vscode/
-
-# settings files
-settings.json
-keybindings.json
-extensions.json
