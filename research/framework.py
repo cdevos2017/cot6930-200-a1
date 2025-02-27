@@ -1,11 +1,10 @@
 # research/framework.py
-
+import time
 from typing import List, Dict, Any, Optional
 from statistics import stdev
 from prompt.prompt_refiner import iterative_prompt_refinement
 from prompt.template_generator import determine_template
-
-# Import from the new test_cases module
+from prompt.utils import format_prompt_with_template
 from research.test_cases import TestCase, STANDARD_TEST_CASES
 
 class PromptResearchFramework:
@@ -68,6 +67,7 @@ class PromptResearchFramework:
         self.parameter_sets = parameter_sets
     
     def run_experiment(self, test_case: TestCase, technique: str, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        start_time = time.time()  # Start timer
         """Run a single experiment with given parameters and robust error handling"""
         try:
             # First, get base template configuration
@@ -90,9 +90,6 @@ class PromptResearchFramework:
                 # Format the template with the actual query
                 template = template_config.get("template", "{query}")
                 
-                # Import the formatting function
-                from prompt.utils import format_prompt_with_template
-                
                 # Format the template with the query and role
                 formatted_template = format_prompt_with_template(
                     template,
@@ -112,7 +109,10 @@ class PromptResearchFramework:
                     "detected_task_type": template_config.get("task_type"),
                     "template_used": formatted_template  # Use the formatted template
                 })
+            end_time = time.time()  # End timer
+            time_taken = end_time - start_time
             
+            result["time_taken"] = time_taken
             # Ensure we return a dictionary
             return result if result else {}
                 
@@ -169,7 +169,6 @@ class PromptResearchFramework:
         results = []
         
         # Create a timestamp for this evaluation
-        import time
         evaluation_timestamp = time.strftime("%Y%m%d_%H%M%S")
         
         for test_case in self.test_cases:

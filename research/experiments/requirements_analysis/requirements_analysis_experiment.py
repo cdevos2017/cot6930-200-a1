@@ -10,20 +10,15 @@ import os
 import json
 import time
 import sys
-from typing import List, Dict, Any
-
 import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-
-# Import framework components
-from research.framework import PromptResearchFramework
+from typing import List, Dict, Any
+from research.experiments.requirements_analysis.requirements_framework_extension import RequirementsAnalysisFramework
 from research.test_cases import TestCase
 from research.reporting.reporter import ResearchReporter
-
-# Import the prompt engineering modules with correct paths
 from prompt.techniques import (
     get_l1_technique_names,
     get_l2_technique_names,
@@ -97,12 +92,16 @@ def run_l1_experiment(framework, test_cases, technique_name, technique_config):
         # Run experiments with this modified test case
         for technique in framework.techniques:
             for params in framework.parameter_sets:
+                start_time = time.time()  # Start timing
                 result = framework.run_experiment(l1_test_case, technique, params)
+                end_time = time.time()  # End timing
+                
                 if result:
                     # Add metadata about the L1 technique
                     result["l1_technique"] = technique_name
                     result["l1_description"] = technique_config["description"]
                     result["original_task"] = test_case.query
+                    result["time_taken"] = end_time - start_time  # Add time taken
                     results.append(result)
     
     return results
@@ -300,6 +299,17 @@ def generate_charts(results, output_dir):
         'temperature_impact': os.path.join(output_dir, 'temperature_impact.png')
     }
 
+def ensure_directories_exist(output_dir):
+    """Ensure all necessary directories exist"""
+    from pathlib import Path
+    
+    # Create output directory with parents
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    
+    # Create specialized visualizations directory if needed
+    viz_dir = Path(output_dir).joinpath("specialized_visualizations")
+    viz_dir.mkdir(parents=True, exist_ok=True)
+
 # Main function to run the experiment
 def main():
     """Main function to run the experiment"""
@@ -320,7 +330,7 @@ def main():
     print(f"Loaded {len(test_cases)} test cases for requirement analysis")
     
     # Initialize the framework
-    framework = PromptResearchFramework(test_cases=test_cases)
+    framework = RequirementsAnalysisFramework(test_cases=test_cases)
     
     # Set techniques if specified
     if args.techniques:
@@ -374,17 +384,26 @@ def main():
     # Calculate L1 vs Standard metrics
     l1_data = [r for r in all_results if 'l1_technique' in r and r['l1_technique']]
     std_data = [r for r in all_results if 'l1_technique' not in r and 'l2_technique' not in r]
+
     
-    if l1_data and std_data:
+    if l1_data and std_data:  # Check both lists are non-empty
         l1_avg_quality = sum(r.get('quality_score', 0) for r in l1_data) / len(l1_data)
         std_avg_quality = sum(r.get('quality_score', 0) for r in std_data) / len(std_data)
         
         analysis["l1_vs_standard"] = {
             "l1_avg_quality": l1_avg_quality,
             "std_avg_quality": std_avg_quality,
-            "quality_improvement": ((l1_avg_quality - std_avg_quality) / std_avg_quality) * 100
+            "quality_improvement": ((l1_avg_quality - std_avg_quality) / std_avg_quality) * 100 if std_avg_quality > 0 else 0
         }
-    
+    else:
+        # Add default values or skip this metric if data is missing
+        print("Warning: Not enough data to calculate L1 vs Standard metrics")
+        analysis["l1_vs_standard"] = {
+            "l1_avg_quality": 0,
+            "std_avg_quality": 0,
+            "quality_improvement": 0,
+            "note": "Insufficient data for comparison"
+    }
     # Calculate L2 metrics
     l2_data = [r for r in all_results if 'l2_technique' in r and r['l2_technique']]
     
@@ -408,8 +427,11 @@ def main():
         for tech, steps in l2_by_tech_step.items():
             l2_step_quality[tech] = {}
             for step, results in steps.items():
-                avg_quality = sum(r.get('quality_score', 0) for r in results) / len(results)
-                l2_step_quality[tech][step] = avg_quality
+                if results:  # Check if results is not empty
+                    avg_quality = sum(r.get('quality_score', 0) for r in results) / len(results)
+                    l2_step_quality[tech][step] = avg_quality
+                else:
+                    l2_step_quality[tech][step] = 0  # Default value when no data
         
         analysis["l2_step_quality"] = l2_step_quality
         
@@ -429,6 +451,8 @@ def main():
                 "l1_avg_quality": l1_avg_quality,
                 "quality_improvement": ((l2_avg_quality - l1_avg_quality) / l1_avg_quality) * 100
             }
+    else:
+        print("Warning: No L2 technique data found")
     
     # Generate report
     print("\nGenerating research report...")
@@ -467,22 +491,19 @@ def main():
     if l2_vs_l1:
         print(f"Level-2 vs Level-1: {l2_vs_l1.get('quality_improvement', 0):.2f}% quality improvement")
     
+        # When running experiments, use the requirements-specific run method
+    if not args.l1_only and not args.l2_only:
+        for test_case in test_cases:
+            for technique in framework.techniques:
+                for params in framework.parameter_sets:
+                    start_time = time.time()
+                    result = framework.run_requirements_experiment(test_case, technique, params)
+                    result["time_taken"] = time.time() - start_time
+                    baseline_results.append(result)
+    
+    # When analyzing results, use the requirements-specific analyzer
+    analysis = framework.analyze_requirements_results(all_results)               
     return 0
 
-def ensure_directories_exist(output_dir):
-    """Ensure all necessary directories exist"""
-    from pathlib import Path
-    
-    # Create output directory with parents
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
-    
-    # Create specialized visualizations directory if needed
-    viz_dir = Path(output_dir).joinpath("specialized_visualizations")
-    viz_dir.mkdir(parents=True, exist_ok=True)
-
-# Then in your main() function, add a call to this function before initializing the reporter:
-# ensure_directories_exist(args.output)
-
-# Then keep your if __name__ block simple:
 if __name__ == "__main__":
     sys.exit(main())
